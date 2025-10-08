@@ -1,0 +1,7 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'backend/apps/*'
+  - 'backend/apps/api-worker/packages/*'
+  - 'Frontend/ezsolvy-app'
+

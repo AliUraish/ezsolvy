@@ -1,0 +1,42 @@
+name = "ezsolvy-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Cloudflare Queues configuration
+[[queues.producers]]
+queue = "explain-queue"
+binding = "EXPLAIN_QUEUE"
+
+[[queues.consumers]]
+queue = "explain-queue"
+max_batch_size = 1
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "explain-dlq"
+
+[env.production]
+name = "ezsolvy-api-prod"
+route = { pattern = "api.ezsolvy.com/*", zone_name = "ezsolvy.com" }
+
+[[env.production.queues.producers]]
+queue = "explain-queue-prod"
+binding = "EXPLAIN_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "explain-queue-prod"
+max_batch_size = 1
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "explain-dlq-prod"
+
+[env.staging]
+name = "ezsolvy-api-staging"
+
+# Secrets (set via: wrangler secret put <NAME>)
+# CLERK_SECRET_KEY
+# SUPABASE_URL
+# SUPABASE_SERVICE_KEY
+# SUPABASE_JWT_SECRET
+# OPENAI_API_KEY
+# PERPLEXITY_API_KEY
+# NANOBANANA_API_KEY

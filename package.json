@@ -1,0 +1,26 @@
+{
+  "name": "ezsolvy",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "backend/apps/*",
+    "backend/apps/api-worker/packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/api-worker",
+    "dev:api": "npm run dev --workspace=apps/api-worker",
+    "build": "npm run build --workspaces",
+    "deploy": "npm run deploy --workspace=apps/api-worker",
+    "deploy:api": "npm run deploy --workspace=apps/api-worker",
+    "typecheck": "npm run typecheck --workspaces",
+    "tail": "cd apps/api-worker && wrangler tail"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.4"
+  }
+}
+
