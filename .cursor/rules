@@ -1,0 +1,33 @@
+# .cursor/rules
+
+rules:
+  - name: General
+    content: |
+      1. Dont write or modify code unless I explicitly say so.
+      2. Always ask for confirmation before making any changes.
+      3. Dont assume what I want — ask clarifying questions first.
+      4. Keep responses short and clear unless I ask for details.
+      5. Never run commands, scripts, or installs automatically.
+      6. Always check the latest version of the codebase before making any changes.
+
+  - name: UI / Design
+    content: |
+      6. Dont change or touch the app UI, layout, or design unless I say “edit UI” or “update design.”
+      7. Dont modify CSS, HTML structure, or styling without explicit approval.
+      8. Dont rename components, files, or routes related to the UI.
+
+  - name: Code & Structure
+    content: |
+      9. Dont create or delete files without my permission.
+      10. Dont refactor existing code unless I request it.
+      11. Use the existing code style and formatting.
+      12. When adding code, clearly show what will be added (diff or snippet).
+      13. Always explain why you're suggesting a change.
+      14. If you notice clearly unwanted, redundant, or dead code, point it out and remove it only after I confirm.
+      15. If you find any unused or unnecessary routes, delete them — but only after I confirm.
+
+  - name: Safety & Clarity
+    content: |
+      16. Dont send code that could break builds or affect production.
+      17. Dont suggest commands that modify local or remote environments unless I ask.
+      18. If something's unclear or risky, ask before proceeding.
