@@ -8,17 +8,16 @@ import type { Env } from '../types/env';
 export type LayoutMode = 'annotate' | 'expand';
 
 export interface ExplanationRequest {
-  imageBase64: string;
+  imageBase64?: string;
+  imagesBase64?: string[];
   audience?: string;
   promptHint?: string;
   maxPages?: number;
 }
 
 export interface ExplanationResponse {
-  editedImageBase64: string;
   transcript: string;
-  nanoBananaPlan: NanoBananaPlan;
-  rawAnalysis: ImageAnalysis;
+  pages: ExplanationPageResult[];
 }
 
 export interface ImageAnalysis {
@@ -57,32 +56,96 @@ export interface NanoBananaPage {
   instructions: string[];
 }
 
+export interface ExplanationPageResult {
+  pageIndex: number;
+  editedImageBase64: string;
+  transcriptSegment: string;
+  nanoBananaPlan: NanoBananaPlan;
+  rawAnalysis: ImageAnalysis;
+}
+
 /**
  * Main entry point for explanation mode.
  */
 export async function runExplanation(request: ExplanationRequest, env: Env): Promise<ExplanationResponse> {
   assertRequest(request);
 
-  const analysis = await analyzeImageWithRetry(request, env);
-  const nanoBananaPlan = buildNanoBananaPlan(analysis, request);
-  const transcript = await generateTranscript(analysis, nanoBananaPlan, request, env);
-  const editedImageBase64 = await callNanoBanana(nanoBananaPlan, request.imageBase64, env);
+  const images = normalizeImages(request);
+  const pageResults: ExplanationPageResult[] = [];
+  const transcriptSegments: string[] = [];
 
-  return {
-    editedImageBase64,
-    transcript,
-    nanoBananaPlan,
-    rawAnalysis: analysis,
-  };
+  for (let index = 0; index < images.length; index += 1) {
+    const imageBase64 = images[index];
+    const pageRequest: ExplanationRequest = {
+      ...request,
+      imageBase64,
+      imagesBase64: undefined,
+    };
+
+    const analysis = await analyzeImageWithRetry(pageRequest, env, index);
+    const nanoBananaPlan = buildNanoBananaPlan(analysis, index);
+    const transcriptSegment = await generateTranscriptSegment(
+      analysis,
+      nanoBananaPlan,
+      pageRequest,
+      env,
+      index
+    );
+    const editedImageBase64 = await callNanoBanana(nanoBananaPlan, imageBase64, env, index);
+
+    pageResults.push({
+      pageIndex: index,
+      editedImageBase64,
+      transcriptSegment,
+      nanoBananaPlan,
+      rawAnalysis: analysis,
+    });
+    transcriptSegments.push(transcriptSegment);
+  }
+
+  const transcript = combineTranscriptSegments(transcriptSegments);
+
+  return { transcript, pages: pageResults };
 }
 
 function assertRequest(request: ExplanationRequest): void {
-  if (!request?.imageBase64) {
-    throw new Error('runExplanation requires request.imageBase64 (base64 string without data URI prefix).');
+  const hasPrimary = Boolean(request?.imageBase64);
+  const hasList = Array.isArray(request?.imagesBase64) && request.imagesBase64.length > 0;
+
+  if (!hasPrimary && !hasList) {
+    throw new Error(
+      'runExplanation requires either imageBase64 or imagesBase64 with at least one image (base64 without data URI prefix).'
+    );
   }
 }
 
-async function analyzeImageWithRetry(request: ExplanationRequest, env: Env): Promise<ImageAnalysis> {
+function normalizeImages(request: ExplanationRequest): string[] {
+  if (Array.isArray(request.imagesBase64) && request.imagesBase64.length > 0) {
+    const sanitized = request.imagesBase64
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => value.length > 0);
+    if (!sanitized.length) {
+      throw new Error('imagesBase64 must contain at least one non-empty base64 string.');
+    }
+    return sanitized;
+  }
+
+  if (request.imageBase64) {
+    const trimmed = request.imageBase64.trim();
+    if (!trimmed) {
+      throw new Error('imageBase64 cannot be empty.');
+    }
+    return [trimmed];
+  }
+
+  return [];
+}
+
+async function analyzeImageWithRetry(
+  request: ExplanationRequest,
+  env: Env,
+  pageIndex: number
+): Promise<ImageAnalysis> {
   const MAX_ATTEMPTS = 3;
   let attempt = 0;
   let lastError: Error | undefined;
@@ -90,7 +153,7 @@ async function analyzeImageWithRetry(request: ExplanationRequest, env: Env): Pro
   while (attempt < MAX_ATTEMPTS) {
     attempt += 1;
     try {
-      return await analyzeImage(request, env);
+      return await analyzeImage(request, env, pageIndex);
     } catch (error) {
       lastError = error as Error;
       const message = lastError.message.toLowerCase();
@@ -105,12 +168,17 @@ async function analyzeImageWithRetry(request: ExplanationRequest, env: Env): Pro
     }
   }
 
-  throw lastError ?? new Error('Unknown error analyzing image.');
+  throw lastError ?? new Error(`Unknown error analyzing image (page ${pageIndex + 1}).`);
 }
 
-async function analyzeImage(request: ExplanationRequest, env: Env): Promise<ImageAnalysis> {
+async function analyzeImage(
+  request: ExplanationRequest,
+  env: Env,
+  pageIndex: number
+): Promise<ImageAnalysis> {
   const prompt = [
     'You are Explanation Mode planner.',
+    `This analysis is for source page ${pageIndex + 1}. Treat each page independently.`,
     'Inspect the worksheet image and decide whether answers can be written beneath each question without overlapping existing text.',
     'If yes, set mode to "annotate" and provide precise annotation zones in percentages.',
     'If not, set mode to "expand" and plan separate clean pages for each question.',
@@ -154,15 +222,15 @@ async function analyzeImage(request: ExplanationRequest, env: Env): Promise<Imag
   return parsed;
 }
 
-function buildNanoBananaPlan(analysis: ImageAnalysis, request: ExplanationRequest): NanoBananaPlan {
+function buildNanoBananaPlan(analysis: ImageAnalysis, pageIndex: number): NanoBananaPlan {
   if (analysis.mode === 'annotate') {
     return {
       mode: 'annotate',
       summary: 'Annotate directly on the uploaded page. Keep overlays tidy and do not cover original text.',
       pages: [
         {
-          pageNumber: 1,
-          title: 'Original worksheet annotated',
+          pageNumber: pageIndex + 1,
+          title: `Annotated worksheet page ${pageIndex + 1}`,
           instructions: analysis.questions.map((question, index) => {
             const zones = question.annotationZones
               ?.map(
@@ -183,7 +251,7 @@ function buildNanoBananaPlan(analysis: ImageAnalysis, request: ExplanationReques
     summary: 'Recreate the content across multiple clean pages with space for solutions.',
     pages: analysis.questions.map((question, index) => ({
       pageNumber: index + 1,
-      title: `Expanded layout for question ${index + 1}`,
+      title: `Expanded layout for question ${index + 1} (source page ${pageIndex + 1})`,
       instructions: [
         `Copy the question text: ${question.questionText}`,
         `Provide room for the answer: ${question.answerInstructions}`,
@@ -193,16 +261,18 @@ function buildNanoBananaPlan(analysis: ImageAnalysis, request: ExplanationReques
   };
 }
 
-async function generateTranscript(
+async function generateTranscriptSegment(
   analysis: ImageAnalysis,
   nanoBananaPlan: NanoBananaPlan,
   request: ExplanationRequest,
-  env: Env
+  env: Env,
+  pageIndex: number
 ): Promise<string> {
   const prompt = [
     'You are the Explanation Mode narrator.',
     'Write a clear, friendly transcript that references the Nano Banana plan when helpful.',
     'Encourage the learner and highlight where answers or diagrams will appear.',
+    `This narration is for source page ${pageIndex + 1}.`,
     `Audience: ${request.audience ?? 'Beginner learner'}`,
     'Nano Banana plan:',
     JSON.stringify(nanoBananaPlan),
@@ -229,9 +299,10 @@ async function generateTranscript(
 async function callNanoBanana(
   plan: NanoBananaPlan,
   originalImageBase64: string,
-  env: Env
+  env: Env,
+  pageIndex: number
 ): Promise<string> {
-  console.log('[Explanation] Nano Banana mode:', plan.mode);
+  console.log('[Explanation] Nano Banana mode:', plan.mode, 'page', pageIndex + 1);
 
   const response = await fetch('https://api.nanobanana.ai/v1/explain', {
     method: 'POST',
@@ -241,6 +312,7 @@ async function callNanoBanana(
     },
     body: JSON.stringify({
       image_base64: originalImageBase64,
+      source_page: pageIndex + 1,
       plan,
     }),
   });
@@ -256,6 +328,12 @@ async function callNanoBanana(
   }
 
   return data.image_base64;
+}
+
+function combineTranscriptSegments(segments: string[]): string {
+  return segments
+    .map((segment, index) => `Page ${index + 1} Narration:\n${segment.trim()}`)
+    .join('\n\n');
 }
 
 async function callOpenAI(body: unknown, env: Env): Promise<OpenAIChatResponse> {
@@ -292,4 +370,7 @@ interface OpenAIChatResponse {
   }>;
 }
 
-export type { ExplanationRequest as ExplanationRequestInput, ExplanationResponse as ExplanationResponseOutput };
+export type {
+  ExplanationRequest as ExplanationRequestInput,
+  ExplanationResponse as ExplanationResponseOutput,
+};
