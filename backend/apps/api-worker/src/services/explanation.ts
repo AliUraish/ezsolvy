@@ -60,13 +60,10 @@ export interface NanoBananaPage {
 /**
  * Main entry point for explanation mode.
  */
-export async function runExplanation(
-  request: ExplanationRequest,
-  env: Env
-): Promise<ExplanationResponse> {
+export async function runExplanation(request: ExplanationRequest, env: Env): Promise<ExplanationResponse> {
   assertRequest(request);
 
-  const analysis = await analyzeImage(request, env);
+  const analysis = await analyzeImageWithRetry(request, env);
   const nanoBananaPlan = buildNanoBananaPlan(analysis, request);
   const transcript = await generateTranscript(analysis, nanoBananaPlan, request, env);
   const editedImageBase64 = await callNanoBanana(nanoBananaPlan, request.imageBase64, env);
@@ -83,6 +80,32 @@ function assertRequest(request: ExplanationRequest): void {
   if (!request?.imageBase64) {
     throw new Error('runExplanation requires request.imageBase64 (base64 string without data URI prefix).');
   }
+}
+
+async function analyzeImageWithRetry(request: ExplanationRequest, env: Env): Promise<ImageAnalysis> {
+  const MAX_ATTEMPTS = 3;
+  let attempt = 0;
+  let lastError: Error | undefined;
+
+  while (attempt < MAX_ATTEMPTS) {
+    attempt += 1;
+    try {
+      return await analyzeImage(request, env);
+    } catch (error) {
+      lastError = error as Error;
+      const message = lastError.message.toLowerCase();
+      const isParseFailure = message.includes('parse') || message.includes('json');
+
+      if (!isParseFailure) {
+        throw lastError;
+      }
+      if (attempt >= MAX_ATTEMPTS) {
+        throw lastError;
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Unknown error analyzing image.');
 }
 
 async function analyzeImage(request: ExplanationRequest, env: Env): Promise<ImageAnalysis> {
@@ -210,23 +233,29 @@ async function callNanoBanana(
 ): Promise<string> {
   console.log('[Explanation] Nano Banana mode:', plan.mode);
 
-  // TODO: integrate the real Nano Banana API call using env.NANOBANANA_API_KEY
-  // Example structure (uncomment and adjust when endpoint details are available):
-  // const response = await fetch('https://api.nanobanana.ai/v1/explain', {
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/json',
-  //     Authorization: `Bearer ${env.NANOBANANA_API_KEY}`,
-  //   },
-  //   body: JSON.stringify({ image_base64: originalImageBase64, plan }),
-  // });
-  // if (!response.ok) {
-  //   throw new Error(`Nano Banana API error: ${response.status} ${response.statusText}`);
-  // }
-  // const result = await response.json() as { image_base64: string };
-  // return result.image_base64;
+  const response = await fetch('https://api.nanobanana.ai/v1/explain', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.NANOBANANA_API_KEY}`,
+    },
+    body: JSON.stringify({
+      image_base64: originalImageBase64,
+      plan,
+    }),
+  });
 
-  return originalImageBase64;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Nano Banana API error: ${response.status} ${response.statusText} - ${errorText}`);
+  }
+
+  const data = (await response.json()) as { image_base64: string };
+  if (!data?.image_base64) {
+    throw new Error('Nano Banana API returned no image_base64 field.');
+  }
+
+  return data.image_base64;
 }
 
 async function callOpenAI(body: unknown, env: Env): Promise<OpenAIChatResponse> {
