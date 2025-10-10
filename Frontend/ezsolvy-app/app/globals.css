@@ -1,0 +1,425 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(0.95 0.01 60);
+  --foreground: oklch(0.15 0.01 60);
+  --card: oklch(0.98 0.005 60);
+  --card-foreground: oklch(0.15 0.01 60);
+  --popover: oklch(0.98 0.005 60);
+  --popover-foreground: oklch(0.15 0.01 60);
+  --primary: oklch(0.45 0.15 250);
+  --primary-foreground: oklch(0.99 0.005 60);
+  --secondary: oklch(0.92 0.01 60);
+  --secondary-foreground: oklch(0.15 0.01 60);
+  --muted: oklch(0.88 0.01 60);
+  --muted-foreground: oklch(0.45 0.01 60);
+  --accent: oklch(0.55 0.18 30);
+  --accent-foreground: oklch(0.99 0.005 60);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.99 0.005 60);
+  --border: oklch(0.85 0.01 60);
+  --input: oklch(0.85 0.01 60);
+  --ring: oklch(0.45 0.15 250);
+  --chart-1: oklch(0.55 0.22 250);
+  --chart-2: oklch(0.6 0.15 200);
+  --chart-3: oklch(0.5 0.18 280);
+  --chart-4: oklch(0.65 0.17 180);
+  --chart-5: oklch(0.58 0.16 220);
+  --radius: 0.75rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.15 0.02 240);
+  --sidebar-primary: oklch(0.55 0.22 250);
+  --sidebar-primary-foreground: oklch(0.99 0.005 240);
+  --sidebar-accent: oklch(0.96 0.01 240);
+  --sidebar-accent-foreground: oklch(0.15 0.02 240);
+  --sidebar-border: oklch(0.9 0.01 240);
+  --sidebar-ring: oklch(0.55 0.22 250);
+}
+
+.dark {
+  --background: oklch(0.12 0.01 264);
+  --foreground: oklch(0.98 0.01 264);
+  --card: oklch(0.16 0.01 264);
+  --card-foreground: oklch(0.98 0.01 264);
+  --popover: oklch(0.16 0.01 264);
+  --popover-foreground: oklch(0.98 0.01 264);
+  --primary: oklch(0.55 0.22 250);
+  --primary-foreground: oklch(0.99 0.005 240);
+  --secondary: oklch(0.22 0.01 264);
+  --secondary-foreground: oklch(0.98 0.01 264);
+  --muted: oklch(0.22 0.01 264);
+  --muted-foreground: oklch(0.62 0.01 264);
+  --accent: oklch(0.55 0.22 250);
+  --accent-foreground: oklch(0.99 0.005 240);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.98 0.01 264);
+  --border: oklch(0.24 0.01 264);
+  --input: oklch(0.24 0.01 264);
+  --ring: oklch(0.55 0.22 250);
+  --chart-1: oklch(0.55 0.22 250);
+  --chart-2: oklch(0.6 0.15 200);
+  --chart-3: oklch(0.5 0.18 280);
+  --chart-4: oklch(0.65 0.17 180);
+  --chart-5: oklch(0.58 0.16 220);
+  --sidebar: oklch(0.16 0.01 264);
+  --sidebar-foreground: oklch(0.98 0.01 264);
+  --sidebar-primary: oklch(0.55 0.22 250);
+  --sidebar-primary-foreground: oklch(0.99 0.005 240);
+  --sidebar-accent: oklch(0.22 0.01 264);
+  --sidebar-accent-foreground: oklch(0.98 0.01 264);
+  --sidebar-border: oklch(0.24 0.01 264);
+  --sidebar-ring: oklch(0.55 0.22 250);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-playfair: var(--font-playfair);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom grid pattern background */
+.grid-pattern {
+  background-image: linear-gradient(to right, oklch(0.92 0.01 240) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.92 0.01 240) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Dark grid pattern */
+.grid-pattern-dark {
+  background-image: linear-gradient(to right, oklch(0.2 0.01 264) 1px, transparent 1px),
+    linear-gradient(to bottom, oklch(0.2 0.01 264) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Adding animated background styles */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px);
+  }
+  50% {
+    transform: translateY(-20px) translateX(10px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animated-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.animated-bg::before,
+.animated-bg::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  animation: float 8s ease-in-out infinite, pulse-glow 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.animated-bg::before {
+  width: 500px;
+  height: 500px;
+  background: oklch(0.55 0.22 250 / 0.15);
+  top: -250px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.animated-bg::after {
+  width: 400px;
+  height: 400px;
+  background: oklch(0.6 0.15 200 / 0.12);
+  bottom: -200px;
+  left: -100px;
+  animation-delay: 2s;
+}
+
+/* Adding animated gradient text for header */
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0px) translateX(0px) scale(1);
+  }
+  33% {
+    transform: translateY(-30px) translateX(20px) scale(1.1);
+  }
+  66% {
+    transform: translateY(-15px) translateX(-15px) scale(0.95);
+  }
+}
+
+@keyframes pulse-glow-dark {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.animated-header {
+  background: linear-gradient(90deg, oklch(0.55 0.22 250), oklch(0.6 0.15 200), oklch(0.55 0.22 250));
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.animated-bg-dark {
+  position: relative;
+  overflow: hidden;
+}
+
+.animated-bg-dark::before,
+.animated-bg-dark::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  animation: float-slow 12s ease-in-out infinite, pulse-glow-dark 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.animated-bg-dark::before {
+  width: 600px;
+  height: 600px;
+  background: oklch(0.55 0.22 250 / 0.3);
+  top: -300px;
+  right: -200px;
+  animation-delay: 0s;
+}
+
+.animated-bg-dark::after {
+  width: 500px;
+  height: 500px;
+  background: oklch(0.6 0.15 200 / 0.25);
+  bottom: -250px;
+  left: -150px;
+  animation-delay: 3s;
+}
+
+/* Adding scrolling diagonal lines animation for light theme background */
+@keyframes scroll-lines {
+  0% {
+    transform: translateX(-100px) translateY(-100px);
+  }
+  100% {
+    transform: translateX(0) translateY(0);
+  }
+}
+
+.scrolling-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.scrolling-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 50px,
+      oklch(0.55 0.22 250 / 0.03) 50px,
+      oklch(0.55 0.22 250 / 0.03) 52px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 50px,
+      oklch(0.6 0.15 200 / 0.02) 50px,
+      oklch(0.6 0.15 200 / 0.02) 52px
+    );
+  background-size: 100px 100px;
+  animation: scroll-lines 20s linear infinite;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Adding floating gradient orbs for light theme */
+@keyframes float-light {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+  }
+}
+
+.animated-bg-light {
+  position: relative;
+  overflow: hidden;
+}
+
+.animated-bg-light::after {
+  content: "";
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, oklch(0.55 0.22 250 / 0.08) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+  animation: float-light 15s ease-in-out infinite;
+  pointer-events: none;
+  top: 10%;
+  right: 10%;
+}
+
+/* Added parallax scrolling lines effect */
+@keyframes parallax-scroll {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 100px 100px, -100px -100px;
+  }
+}
+
+.parallax-lines {
+  background-image: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 60px,
+      oklch(0.55 0.22 250 / 0.15) 60px,
+      oklch(0.55 0.22 250 / 0.15) 62px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 60px,
+      oklch(0.6 0.15 200 / 0.13) 60px,
+      oklch(0.6 0.15 200 / 0.13) 62px
+    );
+  background-size: 120px 120px;
+  animation: parallax-scroll 20s linear infinite;
+  width: 100%;
+  height: 200%;
+}
+
+/* Added loading animations for hero section */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.8s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 1s ease-out;
+}
+
+.animate-fade-in-delay {
+  animation: fade-in 1s ease-out 0.3s both;
+}
+
+/* Added pen stroke drawing animations */
+@keyframes draw-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pen-stroke {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: draw-stroke 2s ease-out forwards;
+}
+
+/* Enhanced pen effect styles */
+svg path,
+svg circle {
+  transition: stroke-dashoffset 0.3s ease-out;
+}
