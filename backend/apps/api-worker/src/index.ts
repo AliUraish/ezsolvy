@@ -9,6 +9,8 @@ import canvas from './routes/canvas';
 import storage from './routes/storage';
 import { processExplainJob } from './worker/explain';
 import { processPDFExportJob } from './worker/pdf-export';
+import explanation from './routes/explanation';
+import { processImageExplanationJob } from './worker/image-explanation';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -32,6 +34,7 @@ app.route('/v1/documents', documents);
 app.route('/v1/jobs', jobs);
 app.route('/v1/canvas', canvas);
 app.route('/v1/storage', storage);
+app.route('/v1/explanation', explanation);
 
 // 404 handler
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
@@ -53,7 +56,9 @@ export default {
         const payload = message.body;
 
         // Route based on job type
-        if (payload.source) {
+        if (payload?.type === 'image-explanation') {
+          await processImageExplanationJob(payload, env);
+        } else if (payload.source) {
           // Explain job (has source field)
           await processExplainJob(payload, env);
         } else if (payload.canvas_id) {
@@ -69,4 +74,3 @@ export default {
     }
   },
 };
-
