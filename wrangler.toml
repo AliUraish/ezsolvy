@@ -2,31 +2,9 @@ name = "ezsolvy-api"
 main = "backend/apps/api-worker/src/index.ts"
 compatibility_date = "2024-01-01"
 
-[[queues.producers]]
-queue = "explain-queue"
-binding = "EXPLAIN_QUEUE"
-
-[[queues.consumers]]
-queue = "explain-queue"
-max_batch_size = 1
-max_batch_timeout = 30
-max_retries = 3
-dead_letter_queue = "explain-dlq"
-
 [env.production]
 name = "ezsolvy-api-prod"
 route = { pattern = "api.ezsolvy.com/*", zone_name = "ezsolvy.com" }
-
-[[env.production.queues.producers]]
-queue = "explain-queue-prod"
-binding = "EXPLAIN_QUEUE"
-
-[[env.production.queues.consumers]]
-queue = "explain-queue-prod"
-max_batch_size = 1
-max_batch_timeout = 30
-max_retries = 3
-dead_letter_queue = "explain-dlq-prod"
 
 [env.staging]
 name = "ezsolvy-api-staging"
