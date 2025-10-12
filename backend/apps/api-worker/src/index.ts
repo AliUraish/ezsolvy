@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import type { Env } from './types/env';
+import type { Env, MessageBatch, ExecutionContext } from './types/env';
 import { authMiddleware } from './middleware/auth';
 import documents from './routes/documents';
 import jobs from './routes/jobs';
