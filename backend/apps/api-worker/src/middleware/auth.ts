@@ -11,6 +11,19 @@ export const authMiddleware = createMiddleware<{
     auth: AuthContext;
   };
 }>(async (c, next) => {
+  if (c.env.DANGEROUS_DEV_BYPASS === '1') {
+    const supabaseJwt = await mintSupabaseJWT(c.env, {
+      sub: '00000000-0000-0000-0000-000000000001',
+      org_id: '00000000-0000-0000-0000-000000000002',
+    });
+    c.set('auth', {
+      clerkUserId: 'dev-clerk-user',
+      userId: '00000000-0000-0000-0000-000000000001',
+      orgId: '00000000-0000-0000-0000-000000000002',
+      supabaseJwt,
+    });
+    return next();
+  }
   // Extract Clerk session token from Authorization header
   const authHeader = c.req.header('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
