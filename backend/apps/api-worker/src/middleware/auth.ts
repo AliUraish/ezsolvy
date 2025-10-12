@@ -75,7 +75,7 @@ export const authMiddleware = createMiddleware<{
     }
 
     // Get org_id from header or use default
-    let orgId = c.req.header('x-org-id');
+    let orgId = c.req.header('x-org-id') ?? undefined;
 
     if (!orgId) {
       // Get user's default organization (first membership)
@@ -87,11 +87,15 @@ export const authMiddleware = createMiddleware<{
         .limit(1)
         .single();
 
-      if (membership) {
-        orgId = membership.org_id;
+      if (membership?.org_id) {
+        orgId = membership.org_id as string;
       } else {
         return c.json({ error: 'No organization found' }, 403);
       }
+    }
+
+    if (!orgId) {
+      return c.json({ error: 'No organization found' }, 403);
     }
 
     // Verify user has access to the org
@@ -126,4 +130,3 @@ export const authMiddleware = createMiddleware<{
     return c.json({ error: 'Unauthorized' }, 401);
   }
 });
-
