@@ -5,6 +5,10 @@ import type React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { toast } from "@/components/ui/use-toast"
+import { API_ORIGIN, AppError, postJson } from "@/lib/api"
+import { streamSSE } from "@/lib/sse"
+import type { ExplanationRequestBody, ExplanationResponse, JobEvent } from "@/lib/types"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Sparkles,
@@ -54,9 +58,59 @@ export default function DashboardPage() {
     setSelectedMode("explanation")
   }
 
-  const handleGenerate = () => {
-    console.log("[v0] Generating with:", { files, question, mode: selectedMode })
-    // This is where you'd integrate with your AI backend
+  const handleGenerate = async () => {
+    try {
+      const imagesBase64: string[] = []
+      for (const file of files) {
+        const b64 = await fileToBase64(file)
+        const stripped = b64.replace(/^data:[^;]+;base64,/, "")
+        imagesBase64.push(stripped)
+      }
+
+      const body: ExplanationRequestBody = imagesBase64.length > 1
+        ? { imagesBase64, audience: undefined, promptHint: question || undefined }
+        : imagesBase64.length === 1
+          ? { imageBase64: imagesBase64[0], audience: undefined, promptHint: question || undefined }
+          : { imageBase64: undefined, imagesBase64: undefined, audience: undefined, promptHint: question || undefined }
+
+      const res = await postJson<ExplanationResponse>("/v1/explanation", body, {
+        headers: selectedMode ? { "x-mode": selectedMode } : undefined,
+      })
+
+      if (res.mode === "sync") {
+        toast({ title: "Explanation ready", description: "Transcript generated (sync)")
+        // TODO: render res.result into transcript/canvas sections
+      } else {
+        toast({ title: "Queued", description: "Processing started..." })
+        const abort = new AbortController()
+        void streamSSE(`${API_ORIGIN}/v1/jobs/${res.job_id}/stream`, (evt: JobEvent) => {
+          if (evt.type === "error") {
+            toast({ title: "Job failed", description: String(evt.data?.error?.message || "Unknown error") })
+          } else if (evt.type === "complete") {
+            const progress = evt.data?.progress
+            const result = progress?.result
+            toast({ title: "Explanation ready", description: "Transcript generated" })
+            // TODO: render result into transcript/canvas sections
+            abort.abort()
+          }
+        }, abort.signal)
+      }
+    } catch (err: unknown) {
+      if (err instanceof AppError) {
+        toast({ title: `Error ${err.status}`, description: err.message })
+      } else {
+        toast({ title: "Error", description: (err as Error)?.message || "Request failed" })
+      }
+    }
+  }
+
+  function fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result))
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 
   const enterFullscreen = useCallback(async () => {
