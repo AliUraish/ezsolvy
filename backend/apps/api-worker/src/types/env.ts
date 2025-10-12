@@ -27,4 +27,5 @@ export interface Env {
   PERPLEXITY_API_KEY: string;
   NANOBANANA_API_KEY: string;
   EXPLAIN_QUEUE: Queue;
+  DANGEROUS_DEV_BYPASS?: string;
 }
