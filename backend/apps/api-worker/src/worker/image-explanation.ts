@@ -21,6 +21,7 @@ export async function processImageExplanationJob(
   const attempt = payload.attempt ?? 0;
 
   try {
+    console.log('[ImageExplanation] start', { jobId: payload.jobId, attempt });
     await updateJobStatus(supabase, payload.jobId, 'working', {
       step: 'explanation_planning',
       message: 'Running explanation workflow',
@@ -34,7 +35,7 @@ export async function processImageExplanationJob(
       result,
     });
   } catch (error: any) {
-    console.error('processImageExplanationJob failed:', error);
+    console.error('processImageExplanationJob failed:', { jobId: payload.jobId, attempt, error: String(error) });
     await updateJobStatus(
       supabase,
       payload.jobId,
