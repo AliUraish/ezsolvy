@@ -1,4 +1,4 @@
-name = "ezsolvy-api"
+name = "ezsolvy"
 main = "backend/apps/api-worker/src/index.ts"
 compatibility_date = "2024-01-01"
 
