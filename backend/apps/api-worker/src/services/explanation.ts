@@ -292,8 +292,20 @@ async function generateTranscriptSegment(
     ],
   };
 
-  const data = await callOpenAI(payload, env);
-  return data.choices?.[0]?.message?.content ?? '';
+  // Prefer Perplexity for transcript segments; fall back to OpenAI if it fails.
+  try {
+    const pplxPayload = { ...payload, model: 'sonar' };
+    const data = await callOpenAIViaPerplexity(pplxPayload, env);
+    return data.choices?.[0]?.message?.content ?? '';
+  } catch (error: any) {
+    console.warn(
+      `[Explanation] Perplexity transcript attempt failed for page ${pageIndex + 1}, falling back to OpenAI: ${error?.message || String(
+        error
+      )}`
+    );
+    const data = await callOpenAI(payload, env);
+    return data.choices?.[0]?.message?.content ?? '';
+  }
 }
 
 async function callNanoBanana(
@@ -352,6 +364,54 @@ async function callOpenAI(body: unknown, env: Env): Promise<OpenAIChatResponse> 
   }
 
   return (await response.json()) as OpenAIChatResponse;
+}
+
+// Concurrency control for Perplexity transcript calls
+const TRANSCRIPT_PPLX_MAX_CONCURRENCY = 4;
+let transcriptPplxInFlight = 0;
+const transcriptPplxQueue: Array<() => void> = [];
+
+async function acquireTranscriptPplxSlot(): Promise<void> {
+  if (transcriptPplxInFlight < TRANSCRIPT_PPLX_MAX_CONCURRENCY) {
+    transcriptPplxInFlight += 1;
+    return;
+  }
+  await new Promise<void>((resolve) => transcriptPplxQueue.push(resolve));
+  transcriptPplxInFlight += 1;
+}
+
+function releaseTranscriptPplxSlot(): void {
+  transcriptPplxInFlight = Math.max(0, transcriptPplxInFlight - 1);
+  const next = transcriptPplxQueue.shift();
+  if (next) next();
+}
+
+async function callOpenAIViaPerplexity(body: unknown, env: Env, timeoutMs = 20000): Promise<OpenAIChatResponse> {
+  await acquireTranscriptPplxSlot();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.PERPLEXITY_API_KEY}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Perplexity API error: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    return (await response.json()) as OpenAIChatResponse;
+  } finally {
+    clearTimeout(timeout);
+    releaseTranscriptPplxSlot();
+  }
 }
 
 function safeParseJson<T>(raw: string, label: string): T {
