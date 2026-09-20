@@ -185,3 +185,73 @@ export async function generateEmbedding(text: string, env: Env): Promise<number[
   return data.data[0]?.embedding || [];
 }
 
+// Concurrency limiter and timeout for Perplexity embeddings (used by processExplainJob only)
+const PPLX_EMBED_MAX_CONCURRENCY = 4;
+const PPLX_EMBED_TIMEOUT_MS = 12_000; // 12 seconds timeout
+let pplxEmbedInFlight = 0;
+const pplxEmbedQueue: Array<() => void> = [];
+
+async function acquirePplxEmbedSlot(): Promise<void> {
+  if (pplxEmbedInFlight >= PPLX_EMBED_MAX_CONCURRENCY) {
+    await new Promise<void>((resolve) => pplxEmbedQueue.push(resolve));
+  }
+  pplxEmbedInFlight += 1;
+}
+
+function releasePplxEmbedSlot(): void {
+  pplxEmbedInFlight = Math.max(0, pplxEmbedInFlight - 1);
+  const next = pplxEmbedQueue.shift();
+  if (next) next();
+}
+
+export async function generateEmbeddingViaPerplexity(text: string, env: Env): Promise<number[]> {
+  await acquirePplxEmbedSlot();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(new Error('Perplexity embeddings request timed out')), PPLX_EMBED_TIMEOUT_MS);
+
+    try {
+      const response = await fetch('https://api.perplexity.ai/embeddings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.PERPLEXITY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          // Assumed OpenAI-compatible embeddings endpoint/model; see PR open_questions.
+          model: 'text-embedding-3-large',
+          input: text,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = (await response.json()) as { data?: Array<{ embedding?: number[] }> };
+        const vec = data?.data?.[0]?.embedding;
+        if (Array.isArray(vec) && vec.length > 0) {
+          return vec;
+        }
+        console.warn('Perplexity embeddings: missing embedding in response; falling back to OpenAI.');
+      } else {
+        const errText = await response.text().catch(() => '');
+        console.warn(`Perplexity embeddings HTTP ${response.status} ${response.statusText} - ${errText}`);
+      }
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (/abort|timed out/i.test(msg)) {
+        console.warn(`Perplexity embeddings aborted: ${msg}`);
+      } else {
+        console.warn(`Perplexity embeddings failed: ${msg}`);
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    // Fallback to original OpenAI embeddings to preserve behavior.
+    return await generateEmbedding(text, env);
+  } finally {
+    releasePplxEmbedSlot();
+  }
+}

@@ -11,7 +11,7 @@ import {
   generateTranscript,
   researchTopic,
   generateDiagram,
-  generateEmbedding,
+  generateEmbeddingViaPerplexity,
 } from '../services/ai';
 
 interface ExplainPayload {
@@ -162,7 +162,7 @@ export async function processExplainJob(payload: ExplainPayload, env: Env): Prom
     // Generate embeddings
     const chunks = transcript.split('\n\n').filter(Boolean);
     for (const chunk of chunks) {
-      const vec = await generateEmbedding(chunk, env);
+      const vec = await generateEmbeddingViaPerplexity(chunk, env);
       await supabase.from('embeddings').insert({
         org_id,
         document_id,
