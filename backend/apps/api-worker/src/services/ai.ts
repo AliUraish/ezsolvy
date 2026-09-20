@@ -105,6 +105,91 @@ export async function generateTranscript(
   return data.choices[0]?.message?.content || '';
 }
 
+// Perplexity transcript: concurrency + timeout just for processExplainJob callers
+const PERPLEXITY_TRANSCRIPT_MAX_CONCURRENCY = 4;
+const PERPLEXITY_TRANSCRIPT_TIMEOUT_MS = 20_000;
+let perplexityTranscriptActive = 0;
+const perplexityTranscriptQueue: Array<() => void> = [];
+
+async function acquirePerplexityTranscriptSlot(): Promise<() => void> {
+  if (perplexityTranscriptActive < PERPLEXITY_TRANSCRIPT_MAX_CONCURRENCY) {
+    perplexityTranscriptActive += 1;
+    return () => {
+      perplexityTranscriptActive -= 1;
+      const next = perplexityTranscriptQueue.shift();
+      if (next) next();
+    };
+  }
+
+  await new Promise<void>((resolve) => perplexityTranscriptQueue.push(resolve));
+  perplexityTranscriptActive += 1;
+  return () => {
+    perplexityTranscriptActive -= 1;
+    const next = perplexityTranscriptQueue.shift();
+    if (next) next();
+  };
+}
+
+export async function generateTranscriptViaPerplexity(
+  questions: string[],
+  canvasElements: any[],
+  diagrams: any[],
+  env: Env
+): Promise<string> {
+  const release = await acquirePerplexityTranscriptSlot();
+  try {
+    const prompt = TRANSCRIPT_PROMPT.replace('{questions}', questions.join('\n\n'))
+      .replace('{canvas_elements}', JSON.stringify(canvasElements, null, 2))
+      .replace('{diagrams}', JSON.stringify(diagrams, null, 2));
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort('timeout'), PERPLEXITY_TRANSCRIPT_TIMEOUT_MS);
+    try {
+      const response = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.PERPLEXITY_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert tutor creating educational transcripts.',
+            },
+            { role: 'user', content: prompt },
+          ],
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const text = await response.text().catch(() => '');
+        throw new Error(
+          `Perplexity API error: ${response.status} ${response.statusText}${text ? ' - ' + text : ''}`
+        );
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message?: { content?: string } }>;
+      };
+      return data.choices?.[0]?.message?.content || '';
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || String(err).includes('aborted') || String(err).includes('timeout')) {
+        throw new Error(
+          `Perplexity transcript request timed out after ${PERPLEXITY_TRANSCRIPT_TIMEOUT_MS}ms`
+        );
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } finally {
+    release();
+  }
+}
+
 export async function researchTopic(
   topic: string,
   questions: string[],
@@ -184,4 +269,3 @@ export async function generateEmbedding(text: string, env: Env): Promise<number[
   };
   return data.data[0]?.embedding || [];
 }
-
