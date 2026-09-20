@@ -9,6 +9,7 @@ import {
   analyzeQuestions,
   generateDiagramSpec,
   generateTranscript,
+  generateTranscriptViaPerplexity,
   researchTopic,
   generateDiagram,
   generateEmbedding,
@@ -97,7 +98,7 @@ export async function processExplainJob(payload: ExplainPayload, env: Env): Prom
       total: 6,
     });
 
-    const diagramSpecs = [];
+    const diagramSpecs: any[] = [];
     for (const diagramType of analysis.diagrams || []) {
       const spec = await generateDiagramSpec(
         analysis.subject,
@@ -115,7 +116,7 @@ export async function processExplainJob(payload: ExplainPayload, env: Env): Prom
       total: 6,
     });
 
-    const canvasElements = [];
+    const canvasElements: any[] = [];
     for (let i = 0; i < diagramSpecs.length; i++) {
       const spec = diagramSpecs[i];
       const imageBytes = await generateDiagram(spec, env);
@@ -148,7 +149,19 @@ export async function processExplainJob(payload: ExplainPayload, env: Env): Prom
       total: 6,
     });
 
-    const transcript = await generateTranscript(questions, canvasElements, diagramSpecs, env);
+    let transcript: string;
+    try {
+      // Prefer Perplexity with its own concurrency bound + timeout
+      transcript = await generateTranscriptViaPerplexity(
+        questions,
+        canvasElements,
+        diagramSpecs,
+        env
+      );
+    } catch (error) {
+      console.warn('Perplexity transcript failed, falling back to OpenAI:', error);
+      transcript = await generateTranscript(questions, canvasElements, diagramSpecs, env);
+    }
 
     // Store transcript
     await supabase.from('transcripts').insert({
